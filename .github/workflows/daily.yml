@@ -1,0 +1,26 @@
+name: Daily Discord Docs Update
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # midnight UTC every day
+  workflow_dispatch:        # lets you trigger it manually from GitHub
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run update script
+        run: python main.py
+        env:
+          DISCORD_BOT_TOKEN:      ${{ secrets.DISCORD_BOT_TOKEN }}
+          GEMINI_API_KEY:         ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
