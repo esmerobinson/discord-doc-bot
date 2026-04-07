@@ -2,7 +2,7 @@ import os
 import json
 import requests
 import datetime
-import google.generativeai as genai
+from google import genai
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
@@ -103,9 +103,9 @@ def append_to_doc(service, doc_id, content):
 
 # ── Gemini ────────────────────────────────────────────────────────────────────
 def ask_gemini(prompt):
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    return model.generate_content(prompt).text
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+    return response.text
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
