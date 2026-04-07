@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import requests
 import datetime
 from google import genai
@@ -40,12 +41,17 @@ def fetch_all_messages(channel_id):
             f'{DISCORD_BASE}/channels/{channel_id}/messages',
             headers=HEADERS, params=params
         )
+        if r.status_code == 429:
+            retry_after = r.json().get('retry_after', 1)
+            time.sleep(retry_after + 0.5)
+            continue
         r.raise_for_status()
         batch = r.json()
         if not batch:
             break
         messages.extend(batch)
         before = batch[-1]['id']
+        time.sleep(0.5)  # be polite to Discord's API
         if len(batch) < 100:
             break
     messages.reverse()  # oldest first
