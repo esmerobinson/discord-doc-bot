@@ -128,7 +128,14 @@ def main():
 Below are all messages from the #story and #bosses Discord channels for a film project.
 Write a comprehensive, well-structured document describing THE CURRENT STATE of the story.
 Cover all key plot points, characters, story beats, and world details.
-Use clear headings and subheadings. Write it as a reference document, not a chat summary.
+Write it as a reference document, not a chat summary.
+
+IMPORTANT FORMATTING RULES:
+- Do NOT use markdown (no #, ##, *, **, etc.)
+- Use UPPERCASE for main section titles (e.g. OVERALL NARRATIVE, CHARACTERS, WORLD & SETTING)
+- Use plain dashes (-) for bullet points
+- Leave a blank line between sections
+- Write in clean plain text suitable for a Google Doc
 
 #story channel:
 {story_text}
@@ -150,7 +157,12 @@ Use clear headings and subheadings. Write it as a reference document, not a chat
         today_text = format_messages(today_story + today_bosses)
         update_summary = ask_gemini(f"""You are a story documentation assistant for a film production team.
 Below are today's Discord messages about the story. Write a brief, clear summary of what was discussed or changed today.
-Be concise — bullet points are fine. Do not write an introduction, just list what changed.
+Be concise. Do not write an introduction, just list what changed.
+
+IMPORTANT FORMATTING RULES:
+- Do NOT use markdown (no #, ##, *, **, etc.)
+- Use plain dashes (-) for bullet points
+- Plain text only, suitable for a Google Doc
 
 Messages from today ({today}):
 {today_text}
@@ -170,8 +182,14 @@ Below are all messages from the #logistics Discord channel.
 Extract and organise ALL tasks, to-dos, and action items mentioned across the entire history.
 Group them by category (e.g. Equipment, Locations, Crew, Scheduling, Budget, etc.).
 For each item, note whether it appears completed or still outstanding based on context in the messages.
-Use checkboxes: [ ] for outstanding, [x] for completed.
+Use [ ] for outstanding items and [x] for completed items.
 Do not include conversational filler — only actionable items.
+
+IMPORTANT FORMATTING RULES:
+- Do NOT use markdown (no #, ##, *, **, etc.)
+- Use UPPERCASE for category titles (e.g. EQUIPMENT, LOCATIONS, CREW)
+- Use plain [ ] and [x] for task checkboxes
+- Plain text only, suitable for a Google Doc
 
 Messages:
 {logistics_text}
