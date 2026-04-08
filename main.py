@@ -140,10 +140,19 @@ def append_to_doc(service, doc_id, content):
 
 
 # ── Gemini ────────────────────────────────────────────────────────────────────
-def ask_gemini(prompt):
+def ask_gemini(prompt, retries=5):
     client = genai.Client(api_key=GEMINI_API_KEY)
-    response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
-    return response.text
+    for attempt in range(retries):
+        try:
+            response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+            return response.text
+        except Exception as e:
+            if attempt < retries - 1:
+                wait = 2 ** attempt * 10  # 10s, 20s, 40s, 80s...
+                print(f'Gemini error ({e}), retrying in {wait}s...')
+                time.sleep(wait)
+            else:
+                raise
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
