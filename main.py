@@ -231,39 +231,50 @@ Messages from today ({today}):
     else:
         print('No story messages today, skipping Story Updates.')
 
-    # 3. LOGISTICS TO DO — rewritten from all logistics history
-    print('Fetching #logistics...')
-    logistics_msgs = fetch_all_messages(LOGISTICS_CHANNEL)
-    logistics_text = format_messages(logistics_msgs)
-    logistics_cuts = extract_cuts(logistics_msgs)
-    logistics_cuts_section = ''
-    if logistics_cuts:
-        cuts_list = '\n'.join(f'- {c}' for c in logistics_cuts)
-        logistics_cuts_section = f"""
-The following items have been explicitly marked as CUT or no longer needed:
+    # 3. LOGISTICS TO DO — daily append only, never overwrites existing content
+    print('Fetching today\'s #logistics messages...')
+    logistics_today = fetch_today_messages(LOGISTICS_CHANNEL)
+
+    if logistics_today:
+        # Skip if already logged today
+        existing_logistics = get_doc_text(docs, DOC_LOGISTICS)
+        if today in existing_logistics:
+            print(f'Already logged logistics for {today}, skipping duplicate.')
+        else:
+            logistics_cuts = extract_cuts(logistics_today)
+            logistics_cuts_section = ''
+            if logistics_cuts:
+                cuts_list = '\n'.join(f'- {c}' for c in logistics_cuts)
+                logistics_cuts_section = f"""
+The following items were marked as CUT today and should be ignored:
 {cuts_list}
 """
+            logistics_text = format_messages(logistics_today)
+            in_three_days = (datetime.date.today() + datetime.timedelta(days=3)).strftime('%B %d, %Y')
 
-    todo_list = ask_gemini(f"""You are a production coordinator assistant for a film team.
-Below are all messages from the #logistics Discord channel.
-Extract and organise ALL tasks, to-dos, and action items mentioned across the entire history.
-Group them by category (e.g. EQUIPMENT, LOCATIONS, CREW, SCHEDULING, BUDGET).
-For each item, note whether it appears completed or still outstanding based on context.
-If a task was changed or updated, only show the current version.
-Use [ ] for outstanding items and [x] for completed items.
-Do not include conversational filler — only actionable items.
+            todo_list = ask_gemini(f"""You are a production coordinator assistant for a film team.
+Below are today's messages from the #logistics Discord channel.
+Extract ALL tasks, to-dos, and action items mentioned today only.
+For each item:
+- Use [ ] for outstanding tasks
+- Use [x] for completed tasks
+- If a task mentions a deadline within 3 days (today is {today}, so anything due by {in_three_days}), add [URGENT] before it
+- If a task uses words like "soon", "asap", "urgent", "this week", "immediately", add [URGENT] before it
+- Do not include conversational filler — only actionable items
 {logistics_cuts_section}
 {FORMATTING_RULES}
-- Use UPPERCASE for category titles
 - Use plain [ ] and [x] for task checkboxes
+- Do NOT group by category — just list items as they appear
 
-Messages:
+Today's messages:
 {logistics_text}
 """)
 
-    print('Writing Logistics To Do doc...')
-    clear_and_write_doc(docs, DOC_LOGISTICS,
-                        f"LOGISTICS TO DO\nLast updated: {today}\n\n{todo_list}")
+            print('Appending to Logistics doc...')
+            append_to_doc(docs, DOC_LOGISTICS,
+                          f"────────────────────────────────────────\n{today}\n────────────────────────────────────────\n{todo_list}\n")
+    else:
+        print('No logistics messages today, skipping.')
 
     print('All done!')
 
