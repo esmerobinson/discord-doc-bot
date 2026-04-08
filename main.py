@@ -144,7 +144,7 @@ def ask_gemini(prompt, retries=5):
     client = genai.Client(api_key=GEMINI_API_KEY)
     for attempt in range(retries):
         try:
-            response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+            response = client.models.generate_content(model='gemini-2.5-flash-lite', contents=prompt)
             return response.text
         except Exception as e:
             if attempt < retries - 1:
