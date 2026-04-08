@@ -110,7 +110,7 @@ def append_to_doc(service, doc_id, content):
 # ── Gemini ────────────────────────────────────────────────────────────────────
 def ask_gemini(prompt):
     client = genai.Client(api_key=GEMINI_API_KEY)
-    response = client.models.generate_content(model='gemini-2.0-flash-lite', contents=prompt)
+    response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
     return response.text
 
 
