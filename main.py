@@ -182,10 +182,13 @@ Do NOT include these in the document:
     story_summary = ask_gemini(f"""You are a story documentation assistant for a film production team.
 Below are all messages from the #story and #bosses Discord channels for a film project.
 Write a comprehensive, well-structured document describing THE CURRENT STATE of the story.
-Cover all key plot points, characters, story beats, and world details.
-If a topic was discussed but later reversed or changed, only reflect the FINAL/CURRENT version.
-If something was scrapped or changed, do not include the old version.
-Write it as a reference document, not a chat summary.
+
+CRITICAL RULES:
+- ONLY use information explicitly stated in the messages below
+- Do NOT invent characters, plot points, or details not present in the messages
+- If a topic was discussed but later reversed or changed, only reflect the FINAL/CURRENT version
+- If something was scrapped or changed, do not include the old version
+- Write it as a reference document, not a chat summary
 {cuts_section}
 {FORMATTING_RULES}
 
@@ -214,8 +217,13 @@ Write it as a reference document, not a chat summary.
             today_text = format_messages(today_story + today_bosses)
             update_summary = ask_gemini(f"""You are a story documentation assistant for a film production team.
 Below are today's Discord messages about the story.
-Write a brief, clear summary of what was discussed or changed today.
-Pay special attention to:
+
+CRITICAL RULES:
+- ONLY summarise what is explicitly stated in the messages below
+- Do NOT invent or add any information not present in the messages
+- If there is nothing notable, output only: (no significant story updates today)
+
+Summarise what was discussed or changed today. Pay attention to:
 - Things that were CHANGED or REVERSED from before (flag these clearly)
 - New ideas or additions
 - Things that were scrapped or cut
@@ -253,20 +261,25 @@ The following items were marked as CUT today and should be ignored:
             in_three_days = (datetime.date.today() + datetime.timedelta(days=3)).strftime('%B %d, %Y')
 
             todo_list = ask_gemini(f"""You are a production coordinator assistant for a film team.
-Below are today's messages from the #logistics Discord channel.
-Extract ALL tasks, to-dos, and action items mentioned today only.
-For each item:
+Your job is to extract action items from the Discord messages below.
+
+CRITICAL RULES:
+- ONLY extract tasks that are explicitly stated in the messages below
+- Do NOT invent, assume, or add any tasks, people, or information not present in the messages
+- Do NOT include the messages themselves in your output
+- If there are no clear action items in the messages, output only: (no tasks today)
+- Output ONLY the task list, nothing else
+
+For each task found:
 - Use [ ] for outstanding tasks
 - Use [x] for completed tasks
-- If a task mentions a deadline within 3 days (today is {today}, so anything due by {in_three_days}), add [URGENT] before it
-- If a task uses words like "soon", "asap", "urgent", "this week", "immediately", add [URGENT] before it
-- Do not include conversational filler — only actionable items
+- If a deadline is mentioned within 3 days (today is {today}, due by {in_three_days}), add [URGENT] before it
+- If words like "soon", "asap", "urgent", "this week", "immediately" are used, add [URGENT] before it
 {logistics_cuts_section}
 {FORMATTING_RULES}
-- Use plain [ ] and [x] for task checkboxes
-- Do NOT group by category — just list items as they appear
+- Use plain [ ] and [x] checkboxes only
 
-Today's messages:
+Messages from {today}:
 {logistics_text}
 """)
 
