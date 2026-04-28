@@ -141,10 +141,19 @@ def write_doc(docs_service, doc_id, content):
     docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': reqs}).execute()
 
 
+PRODUCER_EMAIL = 'esmerobinson15@gmail.com'
+
 def share_doc(drive_service, doc_id):
+    # Anyone with link can view
     drive_service.permissions().create(
         fileId=doc_id,
         body={'type': 'anyone', 'role': 'reader'}
+    ).execute()
+    # Also share directly to producer so it appears in their Drive
+    drive_service.permissions().create(
+        fileId=doc_id,
+        body={'type': 'user', 'role': 'writer', 'emailAddress': PRODUCER_EMAIL},
+        sendNotificationEmail=False
     ).execute()
 
 
@@ -255,12 +264,20 @@ CRITICAL RULES:
 Generated from Discord channels on {today}.
 """)
 
-    # Create new Google Doc
-    print('Creating Google Doc...')
-    doc = docs_service.documents().create(
-        body={'title': f'VENICE GAP-FINANCING MARKET 2026 — Escape The Internet (Part 3)'}
-    ).execute()
-    doc_id = doc['documentId']
+    # Print service account email so user can share a doc with it
+    creds_info = json.loads(os.environ['GOOGLE_CREDENTIALS_JSON'])
+    sa_email = creds_info.get('client_email', 'unknown')
+    print(f'Service account email: {sa_email}')
+
+    doc_id = os.environ.get('VENICE_DOC_ID', '')
+    if not doc_id:
+        print(f'\nERROR: No VENICE_DOC_ID set.')
+        print(f'Steps:')
+        print(f'  1. Create a blank Google Doc in your Drive')
+        print(f'  2. Share it with {sa_email} (Editor)')
+        print(f'  3. Add VENICE_DOC_ID secret to GitHub with the doc ID from its URL')
+        print(f'     (the long string between /d/ and /edit in the URL)')
+        raise SystemExit(1)
 
     header = (
         f"VENICE GAP-FINANCING MARKET 2026\n"
@@ -268,13 +285,11 @@ Generated from Discord channels on {today}.
         f"Generated from Discord channels: #story, #art, #gameplay\n"
         f"Last updated: {today}\n\n"
     )
+    print('Writing to Google Doc...')
     write_doc(docs_service, doc_id, header + treatment)
 
-    # Share: anyone with link can view
-    share_doc(drive_service, doc_id)
-
     doc_url = f"https://docs.google.com/document/d/{doc_id}"
-    print(f"\nDone! Document created:\n{doc_url}")
+    print(f"\nDone!\n{doc_url}")
     return doc_url
 
 

@@ -22,3 +22,4 @@ jobs:
           DISCORD_BOT_TOKEN:       ${{ secrets.DISCORD_BOT_TOKEN }}
           GEMINI_API_KEY:          ${{ secrets.GEMINI_API_KEY }}
           GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          VENICE_DOC_ID:           ${{ secrets.VENICE_DOC_ID }}
