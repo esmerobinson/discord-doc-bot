@@ -80,6 +80,9 @@ def fetch_all_messages(channel_id):
         if r.status_code == 429:
             time.sleep(r.json().get('retry_after', 1) + 0.5)
             continue
+        if r.status_code >= 500:
+            time.sleep(5)
+            continue
         r.raise_for_status()
         batch = r.json()
         if not batch:
