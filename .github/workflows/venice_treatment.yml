@@ -1,7 +1,7 @@
 name: Generate Venice Treatment
 
 on:
-  workflow_dispatch:  # run manually from GitHub whenever you want
+  workflow_dispatch:
 
 jobs:
   generate:
@@ -16,10 +16,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Generate Venice treatment doc
+      - name: Generate Venice treatment
         run: python venice_treatment.py
         env:
-          DISCORD_BOT_TOKEN:       ${{ secrets.DISCORD_BOT_TOKEN }}
-          GEMINI_API_KEY:          ${{ secrets.GEMINI_API_KEY }}
-          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
-          VENICE_DOC_ID:           ${{ secrets.VENICE_DOC_ID }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          GEMINI_API_KEY:    ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Upload HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: venice-treatment
+          path: venice_treatment.html

@@ -4,8 +4,6 @@ import time
 import requests
 import datetime
 from google import genai
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
 
 # ── Config ────────────────────────────────────────────────────────────────────
 DISCORD_TOKEN  = os.environ['DISCORD_BOT_TOKEN']
@@ -15,23 +13,7 @@ STORY_CHANNEL    = '1458882539505582101'
 ART_CHANNEL      = '1458883074048659536'
 GAMEPLAY_CHANNEL = '1493803959620472832'
 
-SCOPES = [
-    'https://www.googleapis.com/auth/documents',
-    'https://www.googleapis.com/auth/drive',
-]
-
-FORMATTING_RULES = """
-IMPORTANT FORMATTING RULES:
-- Do NOT use markdown (no #, ##, *, **, --- etc.)
-- Use UPPERCASE for main section titles
-- Use plain dashes (-) for bullet points
-- Leave a blank line between sections
-- Plain text only, suitable for a Google Doc
-"""
-
 BASE_CONTENT = """
-KNOWN PROJECT DETAILS (use these as foundation, supplement with Discord content):
-
 SHOW: Escape The Internet is a 2-hour live cinematic game for 150-300 people.
 It is a hybrid of animated feature film, live performance, and massively multiplayer game.
 Powered by CrowdEngine — Mutiny Media's proprietary offline OS that tethers every audience
@@ -119,42 +101,7 @@ def format_messages(messages):
             date = msg['timestamp'][:10]
             author = msg['author'].get('global_name') or msg['author']['username']
             lines.append(f"[{date}] {author}: {content}")
-    return '\n'.join(lines) if lines else '(no messages in this channel)'
-
-
-# ── Google Docs / Drive ───────────────────────────────────────────────────────
-def get_services():
-    creds_info = json.loads(os.environ['GOOGLE_CREDENTIALS_JSON'])
-    creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
-    docs  = build('docs',  'v1', credentials=creds)
-    drive = build('drive', 'v3', credentials=creds)
-    return docs, drive
-
-
-def write_doc(docs_service, doc_id, content):
-    doc = docs_service.documents().get(documentId=doc_id).execute()
-    end_index = doc['body']['content'][-1]['endIndex'] - 1
-    reqs = []
-    if end_index > 1:
-        reqs.append({'deleteContentRange': {'range': {'startIndex': 1, 'endIndex': end_index}}})
-    reqs.append({'insertText': {'location': {'index': 1}, 'text': content}})
-    docs_service.documents().batchUpdate(documentId=doc_id, body={'requests': reqs}).execute()
-
-
-PRODUCER_EMAIL = 'esmerobinson15@gmail.com'
-
-def share_doc(drive_service, doc_id):
-    # Anyone with link can view
-    drive_service.permissions().create(
-        fileId=doc_id,
-        body={'type': 'anyone', 'role': 'reader'}
-    ).execute()
-    # Also share directly to producer so it appears in their Drive
-    drive_service.permissions().create(
-        fileId=doc_id,
-        body={'type': 'user', 'role': 'writer', 'emailAddress': PRODUCER_EMAIL},
-        sendNotificationEmail=False
-    ).execute()
+    return '\n'.join(lines) if lines else '(no messages)'
 
 
 # ── Gemini ────────────────────────────────────────────────────────────────────
@@ -173,34 +120,128 @@ def ask_gemini(prompt, retries=5):
                 raise
 
 
+# ── HTML output ───────────────────────────────────────────────────────────────
+HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Venice Gap-Financing Market 2026 — Escape The Internet (Part 3)</title>
+<style>
+  body {{
+    font-family: Georgia, serif;
+    font-size: 12pt;
+    line-height: 1.7;
+    max-width: 21cm;
+    margin: 2cm auto;
+    padding: 0 2cm;
+    color: #1a1a1a;
+    background: #fff;
+  }}
+  .cover {{
+    text-align: center;
+    margin-bottom: 3em;
+    padding-bottom: 2em;
+    border-bottom: 2px solid #1a1a1a;
+  }}
+  .cover h1 {{
+    font-size: 11pt;
+    font-weight: normal;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin: 0 0 0.5em;
+  }}
+  .cover h2 {{
+    font-size: 22pt;
+    font-weight: bold;
+    margin: 0.3em 0;
+    font-style: italic;
+  }}
+  .cover .subtitle {{
+    font-size: 11pt;
+    color: #555;
+    margin-top: 1em;
+  }}
+  .cover .meta {{
+    font-size: 10pt;
+    color: #888;
+    margin-top: 0.5em;
+  }}
+  h3 {{
+    font-size: 10pt;
+    font-weight: bold;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 2em 0 0.5em;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 0.3em;
+  }}
+  p {{
+    margin: 0.8em 0;
+    text-align: justify;
+  }}
+  @media print {{
+    body {{ margin: 0; padding: 2cm; }}
+    .cover {{ page-break-after: avoid; }}
+  }}
+</style>
+</head>
+<body>
+<div class="cover">
+  <h1>Venice Gap-Financing Market 2026</h1>
+  <h2>Escape The Internet (Part 3)</h2>
+  <div class="subtitle">Full Treatment / Concept</div>
+  <div class="meta">Mutiny Media Inc. &nbsp;|&nbsp; Director: Lucas Rizzotto &nbsp;|&nbsp; Producer: Esme Louise Robinson</div>
+  <div class="meta">Generated {today}</div>
+</div>
+{body}
+</body>
+</html>"""
+
+
+def text_to_html(text):
+    sections = text.strip().split('\n\n')
+    html_parts = []
+    for section in sections:
+        section = section.strip()
+        if not section:
+            continue
+        lines = section.split('\n')
+        first = lines[0].strip()
+        # Treat short ALL-CAPS lines as section headings
+        if first == first.upper() and len(first) < 80 and not first.startswith('-'):
+            rest = '\n'.join(lines[1:]).strip()
+            html_parts.append(f'<h3>{first}</h3>')
+            if rest:
+                for para in rest.split('\n'):
+                    para = para.strip()
+                    if para:
+                        html_parts.append(f'<p>{para}</p>')
+        else:
+            for line in lines:
+                line = line.strip()
+                if line:
+                    html_parts.append(f'<p>{line}</p>')
+    return '\n'.join(html_parts)
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     today = datetime.date.today().strftime('%B %d, %Y')
-    docs_service, drive_service = get_services()
 
-    # Fetch Discord content
     print('Fetching #story...')
     story_text = format_messages(fetch_all_messages(STORY_CHANNEL))
-
     print('Fetching #art...')
     art_text = format_messages(fetch_all_messages(ART_CHANNEL))
-
     print('Fetching #gameplay...')
     gameplay_text = format_messages(fetch_all_messages(GAMEPLAY_CHANNEL))
 
-    # Generate treatment
     print('Generating treatment with Gemini...')
     treatment = ask_gemini(f"""You are a professional script consultant writing a Venice Gap-Financing Market treatment document for a live cinematic game called "Escape The Internet (Part 3)".
 
-Write a complete, professional FULL TREATMENT / CONCEPT document of 4-5 A4 pages. This will be submitted to Venice Gap-Financing Market 2026. It must be compelling, precise, and read as a serious industry pitch document.
+Write a complete, professional FULL TREATMENT / CONCEPT of 4-5 A4 pages. This is a serious industry pitch document for Venice Gap-Financing Market 2026.
 
-The document must follow this structure:
-
-VENICE GAP-FINANCING MARKET 2026
-FULL TREATMENT / CONCEPT
-
-ESCAPE THE INTERNET (PART 3)
-Mutiny Media Inc. | Director: Lucas Rizzotto | Producer: Esme Louise Robinson
+Structure the document with these sections in order:
 
 LOGLINE
 [One sentence. The show's entire premise distilled to its sharpest form.]
@@ -209,88 +250,66 @@ FORMAT
 [What this show IS — the genre, the technology, the scale. Make it sound unlike anything else.]
 
 THE WORLD
-[The internet as a physical place. The Archipelago. Brain rot. Sanctuary Island. Why this setting is the right one for this moment.]
+[The internet as a physical place. The Archipelago. Brain rot. Sanctuary Island.]
 
 KEY CHARACTERS
-[Algo/Algodemon — full character description. The Keeper of the Heart. Braniac. The audience as protagonist. Any other characters found in the Discord content.]
+[Algo/Algodemon. The Keeper of the Heart. Braniac. The audience as protagonist. Any others from Discord.]
 
 ACT ONE — THE HEART
-[Full prose description of Trial One. The Love Tunnel. The Cupid Game. The Possession Mechanic. The Funeral Vigil. The boss encounter. Algo's first direct address. What the audience feels leaving this act.]
+[Full prose: the trial, the setpieces, the boss encounter, Algo's first address. What the audience feels leaving this act.]
 
 ACT TWO — THE MIND
-[Full prose description of Trial Two. The Train of Thought. Braniac. The Trolley Problem. Games, mechanics, boss encounter. What the audience feels leaving this act.]
+[Full prose: Train of Thought, Braniac, the Trolley Problem, boss encounter. What the audience feels.]
 
 ACT THREE — THE SOUL
-[Full prose description of Trial Three. The final trial. The Emperors. Algo's arc conclusion. The resolution. What the audience feels at the end of the show.]
+[Full prose: the final trial, the Emperors, Algo's arc conclusion, the resolution and emotional endpoint.]
 
 THE INTERACTIVE EXPERIENCE
-[How the audience's phones work. What CrowdEngine enables. The onboarding sequence. The key interactive setpieces and their emotional purpose — not just what they do, but why they matter.]
+[How the phones work, CrowdEngine, the onboarding, the key setpieces and their emotional purpose.]
 
 VISUAL AND SONIC WORLD
-[Art direction, animation style, sound design. Use the #art Discord content. What does this world look and feel like?]
+[Art direction, animation style, sound design. Use #art content. What does this world look and feel like?]
 
 THE TECHNOLOGY — CROWDENGINE
-[Brief, clear, compelling description of the technology — what it does, that it requires no app or wifi, how it scales. This is a competitive advantage.]
+[Clear, compelling: what it does, no app or wifi required, how it scales.]
 
 PRODUCTION CONTEXT
-[Previous productions: New York October 2025, London December 2025. What was learned. What Part 3 / Venice represents in the show's development arc.]
+[New York Oct 2025, London Dec 2025. What was learned. What Venice represents.]
 
 ---
 
-Use the following sources:
+Sources:
 
-FOUNDATION CONTENT (verified project details):
+FOUNDATION (verified):
 {BASE_CONTENT}
 
-DISCORD #story channel (narrative, characters, plot developments):
+DISCORD #story:
 {story_text}
 
-DISCORD #art channel (visual style, art direction, design decisions):
+DISCORD #art:
 {art_text}
 
-DISCORD #gameplay channel (interactive mechanics, game design):
+DISCORD #gameplay:
 {gameplay_text}
 
-CRITICAL RULES:
-- Write in confident, present-tense prose — this is a description of the show as it will exist, not as it might
-- Do NOT invent facts not supported by the content above
-- Where Discord content adds detail to the foundation, use it — it is more current
-- Where Discord content is absent (channel skipped), use the foundation content and write [TO BE EXPANDED] only if genuinely unknown
-- The document should read as a single coherent voice, not a stitched-together summary
-- 4-5 A4 pages when printed — substantial but tight
-
-{FORMATTING_RULES}
-
-Generated from Discord channels on {today}.
+RULES:
+- Confident present-tense prose throughout
+- Do not invent facts not supported by the sources above
+- Where Discord adds detail, use it — it is more current than the foundation
+- Single coherent voice — not a summary, a document
+- Use UPPERCASE for section titles
+- Plain text, no markdown symbols
+- Leave a blank line between sections
 """)
 
-    # Print service account email so user can share a doc with it
-    creds_info = json.loads(os.environ['GOOGLE_CREDENTIALS_JSON'])
-    sa_email = creds_info.get('client_email', 'unknown')
-    print(f'Service account email: {sa_email}')
+    body_html = text_to_html(treatment)
+    html = HTML_TEMPLATE.format(today=today, body=body_html)
 
-    doc_id = os.environ.get('VENICE_DOC_ID', '')
-    if not doc_id:
-        print(f'\nERROR: No VENICE_DOC_ID set.')
-        print(f'Steps:')
-        print(f'  1. Create a blank Google Doc in your Drive')
-        print(f'  2. Share it with {sa_email} (Editor)')
-        print(f'  3. Add VENICE_DOC_ID secret to GitHub with the doc ID from its URL')
-        print(f'     (the long string between /d/ and /edit in the URL)')
-        raise SystemExit(1)
+    output_path = 'venice_treatment.html'
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(html)
 
-    header = (
-        f"VENICE GAP-FINANCING MARKET 2026\n"
-        f"FULL TREATMENT / CONCEPT\n\n"
-        f"Generated from Discord channels: #story, #art, #gameplay\n"
-        f"Last updated: {today}\n\n"
-    )
-    print('Writing to Google Doc...')
-    write_doc(docs_service, doc_id, header + treatment)
-
-    doc_url = f"https://docs.google.com/document/d/{doc_id}"
-    print(f"\nDone!\n{doc_url}")
-    return doc_url
+    print(f'Done! Written to {output_path}')
 
 
 if __name__ == '__main__':
